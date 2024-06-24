@@ -324,7 +324,7 @@ fn list_chained_edge_points(
 ) -> (i32, i32, Vec<i32>) {
     let mut n = 0;
     let mut m = 0;
-    let mut t=0;
+    let mut t = 0;
     let mut curve_limits = vec![0; width * height];
     *x = vec![0.0; width * height];
     *y = vec![0.0; width * height];
@@ -356,7 +356,14 @@ fn list_chained_edge_points(
     (m, n, curve_limits)
 }
 
-pub fn devernay(image: &Vec<u8>, width: usize, height: usize, sigma: f64, th_h: f64, th_l: f64) {
+pub fn devernay(
+    image: &Vec<u8>,
+    width: usize,
+    height: usize,
+    sigma: f64,
+    th_h: f64,
+    th_l: f64,
+) -> (i32, i32, Vec<i32>, Vec<f64>, Vec<f64>) {
     let mut x: Vec<f64> = Vec::new();
     let mut y: Vec<f64> = Vec::new();
 
@@ -376,11 +383,11 @@ pub fn devernay(image: &Vec<u8>, width: usize, height: usize, sigma: f64, th_h: 
     let (m, n, curve_limits) = list_chained_edge_points(
         &mut x, &mut y, &mut next, &mut prev, &ex, &ey, width, height,
     );
-    println!("N: {}, M: {}", n, m);
     let len = x.len();
     for i in 0..len {
         if x[i] == 0f64 && y[i] == 0f64 {
             continue;
         }
     }
+    (m, n, curve_limits, x, y)
 }
