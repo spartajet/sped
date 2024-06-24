@@ -1,0 +1,8 @@
+[package]
+name = "sped-app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sped-lib = { version = "0.1.0", path = "../sped-lib" }
+image="0.25.1"

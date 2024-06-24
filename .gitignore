@@ -1,2 +1,6 @@
 /target
 .idea/
+sped-app/target/
+sped-lib/target/
+sped-app/.idea/
+Cargo.lock
