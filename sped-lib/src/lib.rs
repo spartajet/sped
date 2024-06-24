@@ -77,33 +77,46 @@ fn gaussian_filter(image: &Vec<u8>, width: usize, height: usize, sigma: f64) -> 
     out
 }
 
-fn chain(from: usize, to: usize, Ex: &Vec<f64>, Ey: &Vec<f64>, Gx: &Vec<f64>, Gy: &Vec<f64>, X: usize, Y: usize) -> f64 {
-    if Ex.is_empty() || Ey.is_empty() || Gx.is_empty() || Gy.is_empty() {
+fn chain(
+    from: usize,
+    to: usize,
+    ex: &Vec<f64>,
+    ey: &Vec<f64>,
+    gx: &Vec<f64>,
+    gy: &Vec<f64>,
+    width: usize,
+    height: usize,
+) -> f64 {
+    if ex.is_empty() || ey.is_empty() || gx.is_empty() || gy.is_empty() {
         panic!("chain: invalid input");
     }
-    if from >= X * Y || to >= X * Y {
+    if from >= width * height || to >= width * height {
         panic!("chain: one of the points is out of the image");
     }
     // Check that the points are different and valid edge points, otherwise return invalid chaining
     if from == to {
         return 0.0; // same pixel, not a valid chaining
     }
-    if Ex[from] < 0.0 || Ey[from] < 0.0 || Ex[to] < 0.0 || Ey[to] < 0.0 {
+    if ex[from] < 0.0 || ey[from] < 0.0 || ex[to] < 0.0 || ey[to] < 0.0 {
         return 0.0; // one of them is not an edge point, not a valid chaining
     }
-    let dx = Ex[to] - Ex[from];
-    let dy = Ey[to] - Ey[from];
-    if (Gy[from] * dx - Gx[from] * dy) * (Gy[to] * dx - Gx[to] * dy) <= 0.0 {
+    let dx = ex[to] - ex[from];
+    let dy = ey[to] - ey[from];
+    if (gy[from] * dx - gx[from] * dy) * (gy[to] * dx - gx[to] * dy) <= 0.0 {
         return 0.0;
     }
-    if (Gy[from] * dx - Gx[from] * dy) >= 0.0 {
-        return 1.0 / dist(Ex[from], Ey[from], Ex[to], Ey[to]);
+    return if (gy[from] * dx - gx[from] * dy) >= 0.0 {
+        1.0 / dist(ex[from], ey[from], ex[to], ey[to])
     } else {
-        return -1.0 / dist(Ex[from], Ey[from], Ex[to], Ey[to]);
-    }
+        -1.0 / dist(ex[from], ey[from], ex[to], ey[to])
+    };
 }
 
-fn compute_gradient(image: &Vec<u8>, width: usize, height: usize) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
+fn compute_gradient(
+    image: &Vec<u8>,
+    width: usize,
+    height: usize,
+) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
     // Approximate image gradient using centered differences
     let len = width * height;
     let mut gx = vec![0f64; len];
@@ -120,7 +133,13 @@ fn compute_gradient(image: &Vec<u8>, width: usize, height: usize) -> (Vec<f64>, 
     (gx, gy, mod_g)
 }
 
-fn compute_edge_points(mod_g: &Vec<f64>, gx: &Vec<f64>, gy: &Vec<f64>, width: usize, height: usize) -> (Vec<f64>, Vec<f64>) {
+fn compute_edge_points(
+    mod_g: &Vec<f64>,
+    gx: &Vec<f64>,
+    gy: &Vec<f64>,
+    width: usize,
+    height: usize,
+) -> (Vec<f64>, Vec<f64>) {
     if mod_g.is_empty() || gx.is_empty() || gy.is_empty() {
         panic!("compute_edge_points: invalid input");
     }
@@ -129,53 +148,59 @@ fn compute_edge_points(mod_g: &Vec<f64>, gx: &Vec<f64>, gy: &Vec<f64>, width: us
     let mut ey = vec![-1.0; len];
     for x in 2..(width - 2) {
         for y in 2..(height - 2) {
-            let mut Dx = 0;
-            let mut Dy = 0;
+            let mut dx = 0;
+            let mut dy = 0;
             let mod_v = mod_g[x + y * width];
-            let L = mod_g[x - 1 + y * width];
-            let R = mod_g[x + 1 + y * width];
-            let U = mod_g[x + (y + 1) * width];
-            let D = mod_g[x + (y - 1) * width];
+            let l = mod_g[x - 1 + y * width];
+            let r = mod_g[x + 1 + y * width];
+            let u = mod_g[x + (y + 1) * width];
+            let d = mod_g[x + (y - 1) * width];
             let gx = gx[x + y * width].abs();
             let gy = gy[x + y * width].abs();
-            if greater_round(mod_v, L) && !greater_round(R, mod_v) && gx >= gy {
-                Dx = 1;
-            } else if greater_round(mod_v, D) && !greater_round(U, mod_v) && gx <= gy {
-                Dy = 1;
+            if greater_round(mod_v, l) && !greater_round(r, mod_v) && gx >= gy {
+                dx = 1;
+            } else if greater_round(mod_v, d) && !greater_round(u, mod_v) && gx <= gy {
+                dy = 1;
             }
-            if Dx > 0 || Dy > 0 {
-                let a = mod_g[x - Dx + (y - Dy) * width];
+            if dx > 0 || dy > 0 {
+                let a = mod_g[x - dx + (y - dy) * width];
                 let b = mod_g[x + y * width];
-                let c = mod_g[x + Dx + (y + Dy) * width];
+                let c = mod_g[x + dx + (y + dy) * width];
                 let offset = 0.5 * (a - c) / (a - b - b + c);
-                ex[x + y * width] = x as f64 + offset * Dx as f64;
-                ey[x + y * width] = y as f64 + offset * Dy as f64;
+                ex[x + y * width] = x as f64 + offset * dx as f64;
+                ey[x + y * width] = y as f64 + offset * dy as f64;
             }
         }
     }
     (ex, ey)
 }
 
-fn chain_edge_points(next: &mut Vec<i32>, prev: &mut Vec<i32>, Ex: &Vec<f64>, Ey: &Vec<f64>, Gx: &Vec<f64>, Gy: &Vec<f64>, X: usize, Y: usize) {
-    if next.is_empty() || prev.is_empty() || Ex.is_empty() || Ey.is_empty() || Gx.is_empty() || Gy.is_empty() {
+fn chain_edge_points(
+    ex: &Vec<f64>,
+    ey: &Vec<f64>,
+    gx: &Vec<f64>,
+    gy: &Vec<f64>,
+    width: usize,
+    height: usize,
+) -> (Vec<i32>, Vec<i32>) {
+    if ex.is_empty() || ey.is_empty() || gx.is_empty() || gy.is_empty() {
         panic!("chain_edge_points: invalid input");
     }
-    for i in 0..X * Y {
-        next[i] = -1;
-        prev[i] = -1;
-    }
-    for x in 2..(X - 2) {
-        for y in 2..(Y - 2) {
-            if Ex[x + y * X] >= 0.0 && Ey[x + y * X] >= 0.0 {
-                let from = x + y * X;
+    let len = width * height;
+    let mut next = vec![-1i32; len];
+    let mut prev = vec![-1i32; len];
+    for x in 2..(width - 2) {
+        for y in 2..(height - 2) {
+            if ex[x + y * width] >= 0.0 && ey[x + y * width] >= 0.0 {
+                let from = x + y * width;
                 let mut fwd_s = 0.0;
                 let mut bck_s = 0.0;
                 let mut fwd = -1i32;
                 let mut bck = -1i32;
                 for i in 0..5 {
                     for j in 0..5 {
-                        let to = x + i - 2 + (y + j - 2) * X;
-                        let s = chain(from, to, &Ex, &Ey, &Gx, &Gy, X, Y);
+                        let to = x + i - 2 + (y + j - 2) * width;
+                        let s = chain(from, to, &ex, &ey, &gx, &gy, width, height);
                         if s > fwd_s {
                             fwd_s = s;
                             fwd = to as i32;
@@ -187,7 +212,20 @@ fn chain_edge_points(next: &mut Vec<i32>, prev: &mut Vec<i32>, Ex: &Vec<f64>, Ey
                     }
                 }
 
-                if fwd >= 0 && next[from] != fwd && ((prev[fwd as usize] < 0) || chain(prev[fwd as usize] as usize, fwd as usize, &Ex, &Ey, &Gx, &Gy, X, Y) < fwd_s) {
+                if fwd >= 0
+                    && next[from] != fwd
+                    && ((prev[fwd as usize] < 0)
+                        || chain(
+                            prev[fwd as usize] as usize,
+                            fwd as usize,
+                            &ex,
+                            &ey,
+                            &gx,
+                            &gy,
+                            width,
+                            height,
+                        ) < fwd_s)
+                {
                     if next[from] >= 0 {
                         prev[next[from] as usize] = -1;
                     }
@@ -197,7 +235,20 @@ fn chain_edge_points(next: &mut Vec<i32>, prev: &mut Vec<i32>, Ex: &Vec<f64>, Ey
                     }
                     prev[fwd as usize] = from as i32;
                 }
-                if bck >= 0 && prev[from] != bck && ((next[bck as usize] < 0) || chain(next[bck as usize] as usize, bck as usize, &Ex, &Ey, &Gx, &Gy, X, Y) > bck_s) {
+                if bck >= 0
+                    && prev[from] != bck
+                    && ((next[bck as usize] < 0)
+                        || chain(
+                            next[bck as usize] as usize,
+                            bck as usize,
+                            &ex,
+                            &ey,
+                            &gx,
+                            &gy,
+                            width,
+                            height,
+                        ) > bck_s)
+                {
                     if next[bck as usize] >= 0 {
                         prev[next[bck as usize] as usize] = -1;
                     }
@@ -210,41 +261,50 @@ fn chain_edge_points(next: &mut Vec<i32>, prev: &mut Vec<i32>, Ex: &Vec<f64>, Ey
             }
         }
     }
+    (prev, next)
 }
 
-fn thresholds_with_hysteresis(next: &mut Vec<i32>, prev: &mut Vec<i32>, modG: &Vec<f64>, X: usize, Y: usize, th_h: f64, th_l: f64) {
-    if next.is_empty() || prev.is_empty() || modG.is_empty() {
+fn thresholds_with_hysteresis(
+    next: &mut Vec<i32>,
+    prev: &mut Vec<i32>,
+    mod_g: &Vec<f64>,
+    width: usize,
+    height: usize,
+    th_h: f64,
+    th_l: f64,
+) {
+    if next.is_empty() || prev.is_empty() || mod_g.is_empty() {
         panic!("thresholds_with_hysteresis: invalid input");
     }
-    let mut valid: Vec<bool> = vec![false; X * Y];
-    for i in 0..X * Y {
-        if (prev[i] >= 0 || next[i] >= 0) && !valid[i] && modG[i] >= th_h {
+    let mut valid: Vec<bool> = vec![false; width * height];
+    for i in 0..width * height {
+        if (prev[i] >= 0 || next[i] >= 0) && !valid[i] && mod_g[i] >= th_h {
             valid[i] = true;
             let mut j = i;
             while j >= 0 && (next[j] >= 0) && !valid[next[j] as usize] {
                 let k = next[j] as usize;
-                if modG[k] < th_l {
+                if mod_g[k] < th_l {
                     next[j] = -1;
                     prev[k] = -1;
                 } else {
                     valid[k] = true;
                 }
-                j = k as usize;
+                j = k;
             }
             j = i;
             while j >= 0 && (prev[j] >= 0) && !valid[prev[j] as usize] {
                 let k = prev[j] as usize;
-                if modG[k] < th_l {
+                if mod_g[k] < th_l {
                     prev[j] = -1;
                     next[k] = -1;
                 } else {
                     valid[k] = true;
                 }
-                j = k as usize;
+                j = k;
             }
         }
     }
-    for i in 0..X * Y {
+    for i in 0..width * height {
         if (prev[i] >= 0 || next[i] >= 0) && !valid[i] {
             prev[i] = -1;
             next[i] = -1;
@@ -252,53 +312,57 @@ fn thresholds_with_hysteresis(next: &mut Vec<i32>, prev: &mut Vec<i32>, modG: &V
     }
 }
 
-fn list_chained_edge_points(x: &mut Vec<f64>, y: &mut Vec<f64>, N: &mut i32, curve_limits: &mut Vec<i32>, M: &mut i32, next: &mut Vec<i32>, prev: &mut Vec<i32>, Ex: &Vec<f64>, Ey: &Vec<f64>, X: usize, Y: usize) {
-    *x = vec![0.0; X * Y];
-    *y = vec![0.0; X * Y];
-    *curve_limits = vec![0; X * Y];
-    *N = 0;
-    *M = 0;
-    for i in 0..X * Y {
+fn list_chained_edge_points(
+    x: &mut Vec<f64>,
+    y: &mut Vec<f64>,
+    next: &mut Vec<i32>,
+    prev: &mut Vec<i32>,
+    ex: &Vec<f64>,
+    ey: &Vec<f64>,
+    width: usize,
+    height: usize,
+) -> (i32, i32, Vec<i32>) {
+    let mut n = 0;
+    let mut m = 0;
+    let mut t=0;
+    let mut curve_limits = vec![0; width * height];
+    *x = vec![0.0; width * height];
+    *y = vec![0.0; width * height];
+    for i in 0..width * height {
         if prev[i] >= 0 || next[i] >= 0 {
-            curve_limits[*M as usize] = *N;
-            *M += 1;
+            curve_limits[m as usize] = n;
+            m += 1;
             let mut k = i as i32;
-            let mut n;
+            // let mut n;
             'kn: loop {
-                n = prev[k as usize];
-                if !(n >= 0 && n != i as i32) {
+                t = prev[k as usize];
+                if !(t >= 0 && t != i as i32) {
                     break 'kn;
                 }
-                k = n;
+                k = t;
             }
             while k >= 0 {
-                x[*N as usize] = Ex[k as usize];
-                y[*N as usize] = Ey[k as usize];
-                *N += 1;
-                n = next[k as usize];
+                x[n as usize] = ex[k as usize];
+                y[n as usize] = ey[k as usize];
+                n += 1;
+                t = next[k as usize];
                 next[k as usize] = -1;
                 prev[k as usize] = -1;
-                k = n;
+                k = t;
             }
         }
     }
-    curve_limits[*M as usize] = *N;
+    curve_limits[m as usize] = n;
+    (m, n, curve_limits)
 }
 
 pub fn devernay(image: &Vec<u8>, width: usize, height: usize, sigma: f64, th_h: f64, th_l: f64) {
     let mut x: Vec<f64> = Vec::new();
     let mut y: Vec<f64> = Vec::new();
-    let mut N: i32 = 0;
-    let mut curve_limits: Vec<i32> = Vec::new();
-    let mut M: i32 = 0;
-    // let mut Ex: Vec<f64> = vec![0.0; width * height];
-    // let mut Ey: Vec<f64> = vec![0.0; width * height];
-    let mut next: Vec<i32> = vec![-1; width * height];
-    let mut prev: Vec<i32> = vec![-1; width * height];
 
     let cal_image = match sigma == 0f64 {
         true => &image,
-        false => &gaussian_filter(&image, width, height, sigma)
+        false => &gaussian_filter(&image, width, height, sigma),
     };
     let (gx, gy, mod_g) = compute_gradient(cal_image, width, height);
     for i in 0..width * height {
@@ -307,16 +371,16 @@ pub fn devernay(image: &Vec<u8>, width: usize, height: usize, sigma: f64, th_h: 
         }
     }
     let (ex, ey) = compute_edge_points(&mod_g, &gx, &gy, width, height);
-    chain_edge_points(&mut next, &mut prev, &ex, &ey, &gx, &gy, width, height);
+    let (mut prev, mut next) = chain_edge_points(&ex, &ey, &gx, &gy, width, height);
     thresholds_with_hysteresis(&mut next, &mut prev, &mod_g, width, height, th_h, th_l);
-    list_chained_edge_points(&mut x, &mut y, &mut N, &mut curve_limits, &mut M, &mut next, &mut prev, &ex, &ey, width, height);
-    println!("N: {}, M: {}", N, M);
+    let (m, n, curve_limits) = list_chained_edge_points(
+        &mut x, &mut y, &mut next, &mut prev, &ex, &ey, width, height,
+    );
+    println!("N: {}, M: {}", n, m);
     let len = x.len();
     for i in 0..len {
         if x[i] == 0f64 && y[i] == 0f64 {
             continue;
         }
-        // println!("x: {:.4}, y: {:.4}", x[i], y[i]);
     }
 }
-
