@@ -2,6 +2,12 @@
 name = "sped"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+description = "SPED(Sub-Pixel Edge Detect) based on a modified Canny non-maximal suppression and a modified Devernay sub-pixel correction."
+repository = "https://github.com/spartajet/sped/tree/master"
+readme = "README.md"
+keywords = ["sub-pixel", "edge", "detection", "canny", "devernay"]
+categories = ["computer-vision"]
 
 [dependencies]
 log = "0.4.21"
