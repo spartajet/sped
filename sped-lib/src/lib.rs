@@ -372,11 +372,6 @@ pub fn devernay(
         false => &gaussian_filter(&image, width, height, sigma),
     };
     let (gx, gy, mod_g) = compute_gradient(cal_image, width, height);
-    for i in 0..width * height {
-        if gx[i] == 0.0 || gy[i] == 0.0 || mod_g[i] == 0.0 {
-            continue;
-        }
-    }
     let (ex, ey) = compute_edge_points(&mod_g, &gx, &gy, width, height);
     let (mut prev, mut next) = chain_edge_points(&ex, &ey, &gx, &gy, width, height);
     thresholds_with_hysteresis(&mut next, &mut prev, &mod_g, width, height, th_h, th_l);
