@@ -1,3 +1,5 @@
+use image::{GenericImage, ImageBuffer, RgbImage};
+use image::buffer::ConvertBuffer;
 use image::io::Reader as ImageReader;
 use log::{info, LevelFilter};
 use log4rs::append::console::ConsoleAppender;
@@ -9,24 +11,34 @@ use sped::{devernay};
 
 fn main() {
     let _ = config_log4r();
-    let origin_mat = ImageReader::open("../resources/demo.Bmp")
+    let origin_mat = ImageReader::open("../resources/demo1.Bmp")
         .unwrap()
         .decode()
         .unwrap();
     let gray_mat = origin_mat.grayscale().to_luma8();
     let (width, height) = &gray_mat.dimensions();
-    let data: Vec<u8> = gray_mat.into_vec();
+    let data: Vec<u8> = gray_mat.clone().into_vec();
+    let mut result_image:RgbImage=gray_mat.convert();
+
 
     let result = devernay(
         &data,
         width.clone() as usize,
         height.clone() as usize,
-        1.5f64,
-        4.2f64,
-        0.81f64,
+        1.0,
+        40.0,
+        20.0,
     )
     .unwrap();
-    info!("Result: {:?}", result.len())
+    info!("Result: {:?}", result.len());
+    for points in result {
+        info!("Points: {:?}", points.len());
+        for point in points {
+            result_image.put_pixel(point.x as u32, point.y as u32, image::Rgb([255, 0, 0]));
+        }
+    }
+    result_image.save("../resources/result.jpg").unwrap();
+    
 }
 
 fn config_log4r() -> Handle {
