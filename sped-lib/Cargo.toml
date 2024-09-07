@@ -1,6 +1,6 @@
 [package]
 name = "sped"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT"
 description = "SPED(Sub-Pixel Edge Detect) based on a modified Canny non-maximal suppression and a modified Devernay sub-pixel correction."
