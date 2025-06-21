@@ -1,6 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::needless_range_loop)]
 
+use anyhow::{anyhow, Result};
 use log::info;
 use std::f64::consts::E;
 
@@ -728,15 +729,15 @@ pub fn devernay(
     sigma: f64,
     th_h: f64,
     th_l: f64,
-) -> Result<Vec<Vec<Point2d>>, String> {
+) -> Result<Vec<Vec<Point2d>>> {
     if sigma < 0.0 {
-        return Err("sigma must be non-negative".to_string());
+        return Err(anyhow!("sigma must be non-negative"));
     }
     if th_h < 0.0 || th_l < 0.0 {
-        return Err("thresholds must be non-negative".to_string());
+        return Err(anyhow!("thresholds must be non-negative"));
     }
     if th_h < th_l {
-        return Err("high threshold must be greater than low threshold".to_string());
+        return Err(anyhow!("high threshold must be greater than low threshold"));
     }
 
     let (gx, gy, mod_g) = if sigma == 0f64 {
