@@ -1,4 +1,7 @@
-use log::trace;
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::needless_range_loop)]
+
+use log::info;
 use std::f64::consts::E;
 
 const EPSILON: f64 = f64::EPSILON;
@@ -59,6 +62,22 @@ fn gaussian_kernel(n: usize, sigma: f64, mean: f64) -> Vec<f64> {
     kernel.iter().map(|x| x / sum).collect()
 }
 
+/// Compute the L2 distance between two points.
+///
+/// # Arguments
+///
+/// * `x1`: The x-coordinate of the first point.
+/// * `y1`: The y-coordinate of the first point.
+/// * `x2`: The x-coordinate of the second point.
+/// * `y2`: The y-coordinate of the second point.
+///
+/// returns: f64
+///
+/// # Examples
+///
+/// ```
+///
+/// ```
 fn dist_l2(x1: f64, y1: f64, x2: f64, y2: f64) -> f64 {
     ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt()
 }
@@ -68,10 +87,10 @@ fn dist_l2(x1: f64, y1: f64, x2: f64, y2: f64) -> f64 {
 /// to a newly allocated filtered image, of the same size as the input image.
 /// # Arguments
 ///
-/// * `image`:
-/// * `width`:
-/// * `height`:
-/// * `sigma`:
+/// * `image`: The input image.
+/// * `width`: The width of the input image.
+/// * `height`: The height of the input image.
+/// * `sigma`: The standard deviation of the Gaussian distribution.
 ///
 /// returns: Vec<u8, Global>
 ///
@@ -80,7 +99,7 @@ fn dist_l2(x1: f64, y1: f64, x2: f64, y2: f64) -> f64 {
 /// ```
 ///
 /// ```
-fn gaussian_filter(image: &Vec<u8>, width: usize, height: usize, sigma: f64) -> Vec<u8> {
+fn gaussian_filter(image: &[u8], width: usize, height: usize, sigma: f64) -> Vec<u8> {
     let len = width * height;
     let mut tmp = vec![0.0; len];
     let mut out = vec![0; len];
@@ -128,7 +147,7 @@ fn gaussian_filter(image: &Vec<u8>, width: usize, height: usize, sigma: f64) -> 
                 if j >= height as i32 {
                     j = ny2 as i32 - 1 - j;
                 }
-                val = val + tmp[x + j as usize * width] * kernel[i];
+                val += tmp[x + j as usize * width] * kernel[i];
             }
             out[x + y * width] = val as u8;
         }
@@ -137,9 +156,9 @@ fn gaussian_filter(image: &Vec<u8>, width: usize, height: usize, sigma: f64) -> 
 }
 
 ///  return a score for chaining pixels 'from' to 'to', favoring closet point:
-/// 	= 0.0 invalid chaining;
-/// 	> 0.0 valid forward chaining; the larger the value, the better the chaining;
-/// 	< 0.0 valid backward chaining; the smaller the value, the better the chaining;
+///  = 0.0 invalid chaining;
+///  \> 0.0 valid forward chaining; the larger the value, the better the chaining;
+///  \< 0.0 valid backward chaining; the smaller the value, the better the chaining;
 ///
 ///
 /// # Arguments
@@ -163,10 +182,10 @@ fn gaussian_filter(image: &Vec<u8>, width: usize, height: usize, sigma: f64) -> 
 fn chain(
     from: usize,
     to: usize,
-    ex: &Vec<f64>,
-    ey: &Vec<f64>,
-    gx: &Vec<f64>,
-    gy: &Vec<f64>,
+    ex: &[f64],
+    ey: &[f64],
+    gx: &[f64],
+    gy: &[f64],
     width: usize,
     height: usize,
 ) -> f64 {
@@ -198,11 +217,11 @@ fn chain(
     }
     /* return the chaining score: positive for forward chaining,negative for backwards.
     the score is the inverse of the distance to the chaining point, to give preference to closer points */
-    return if (gy[from] * dx - gx[from] * dy) >= 0.0 {
+    if (gy[from] * dx - gx[from] * dy) >= 0.0 {
         1.0 / dist_l2(ex[from], ey[from], ex[to], ey[to]) /* forward chaining  */
     } else {
         -1.0 / dist_l2(ex[from], ey[from], ex[to], ey[to]) /* backward chaining */
-    };
+    }
 }
 
 /// compute the image gradient, giving its x and y components as well
@@ -210,9 +229,9 @@ fn chain(
 ///
 /// # Arguments
 ///
-/// * `image`:
-/// * `width`:
-/// * `height`:
+/// * `image`: image data
+/// * `width`: image width
+/// * `height`: image height
 ///
 /// returns: (Vec<f64, Global>, Vec<f64, Global>, Vec<f64, Global>)
 ///
@@ -221,11 +240,7 @@ fn chain(
 /// ```
 ///
 /// ```
-fn compute_gradient(
-    image: &Vec<u8>,
-    width: usize,
-    height: usize,
-) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
+fn compute_gradient(image: &[u8], width: usize, height: usize) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
     let len = width * height;
     let mut gx = vec![0f64; len];
     let mut gy = vec![0f64; len];
@@ -264,9 +279,9 @@ fn compute_gradient(
 ///
 /// ```
 fn compute_edge_points(
-    mod_g: &Vec<f64>,
-    gx: &Vec<f64>,
-    gy: &Vec<f64>,
+    mod_g: &[f64],
+    gx: &[f64],
+    gy: &[f64],
     width: usize,
     height: usize,
 ) -> (Vec<f64>, Vec<f64>) {
@@ -347,10 +362,10 @@ fn compute_edge_points(
 ///
 /// ```
 fn chain_edge_points(
-    ex: &Vec<f64>,
-    ey: &Vec<f64>,
-    gx: &Vec<f64>,
-    gy: &Vec<f64>,
+    ex: &[f64],
+    ey: &[f64],
+    gx: &[f64],
+    gy: &[f64],
     width: usize,
     height: usize,
 ) -> (Vec<i32>, Vec<i32>) {
@@ -377,7 +392,7 @@ fn chain_edge_points(
                 for i in 0..5 {
                     for j in 0..5 {
                         let to = x + i - 2 + (y + j - 2) * width; /* candidate edge point to be chained */
-                        let s = chain(from, to, &ex, &ey, &gx, &gy, width, height); /* score from-to */
+                        let s = chain(from, to, ex, ey, gx, gy, width, height); /* score from-to */
                         if s > fwd_s {
                             /* a better forward chaining found    */
                             fwd_s = s; /* set the new best forward chaining  */
@@ -449,10 +464,10 @@ fn chain_edge_points(
                         || chain(
                             prev[fwd as usize] as usize,
                             fwd as usize,
-                            &ex,
-                            &ey,
-                            &gx,
-                            &gy,
+                            ex,
+                            ey,
+                            gx,
+                            gy,
                             width,
                             height,
                         ) < fwd_s)
@@ -474,10 +489,10 @@ fn chain_edge_points(
                         || chain(
                             next[bck as usize] as usize,
                             bck as usize,
-                            &ex,
-                            &ey,
-                            &gx,
-                            &gy,
+                            ex,
+                            ey,
+                            gx,
+                            gy,
                             width,
                             height,
                         ) > bck_s)
@@ -526,9 +541,9 @@ fn chain_edge_points(
 ///
 /// ```
 fn thresholds_with_hysteresis(
-    next: &mut Vec<i32>,
-    prev: &mut Vec<i32>,
-    mod_g: &Vec<f64>,
+    next: &mut [i32],
+    prev: &mut [i32],
+    mod_g: &[f64],
     width: usize,
     height: usize,
     th_h: f64,
@@ -612,10 +627,10 @@ fn thresholds_with_hysteresis(
 ///
 /// ```
 fn list_chained_edge_points(
-    next: &mut Vec<i32>,
-    prev: &mut Vec<i32>,
-    ex: &Vec<f64>,
-    ey: &Vec<f64>,
+    next: &mut [i32],
+    prev: &mut [i32],
+    ex: &[f64],
+    ey: &[f64],
     width: usize,
     height: usize,
 ) -> Vec<Vec<Point2d>> {
@@ -686,29 +701,60 @@ fn list_chained_edge_points(
 /// # Examples
 ///
 /// ```
+/// let origin_mat = ImageReader::open("../resources/demo1.Bmp")
+///    .unwrap()
+///    .decode()
+///    .unwrap();
+/// let gray_mat = origin_mat.grayscale().to_luma8();
+/// let (width, height) = &gray_mat.dimensions();
+/// let data: Vec<u8> = gray_mat.clone().into_vec();
+/// let mut result_image: RgbImage = gray_mat.convert();
+///
+/// let result = devernay(&data, *width as usize, *height as usize, 1.0, 40.0, 20.0).unwrap();
+/// info!("Result: {:?}", result.len());
+/// for points in result {
+///     info!("Points: {:?}", points.len());
+///     for point in points {
+///         result_image.put_pixel(point.x as u32, point.y as u32, image::Rgb([255, 0, 0]));
+///     }
+/// }
+/// result_image.save("../resources/result.jpg").unwrap();
 ///
 /// ```
 pub fn devernay(
-    image: &Vec<u8>,
+    image: &[u8],
     width: usize,
     height: usize,
     sigma: f64,
     th_h: f64,
     th_l: f64,
 ) -> Result<Vec<Vec<Point2d>>, String> {
-    let cal_image = match sigma == 0f64 {
-        true => &image,
-        false => &gaussian_filter(&image, width, height, sigma),
+    if sigma < 0.0 {
+        return Err("sigma must be non-negative".to_string());
+    }
+    if th_h < 0.0 || th_l < 0.0 {
+        return Err("thresholds must be non-negative".to_string());
+    }
+    if th_h < th_l {
+        return Err("high threshold must be greater than low threshold".to_string());
+    }
+
+    let (gx, gy, mod_g) = if sigma == 0f64 {
+        compute_gradient(image, width, height)
+    } else {
+        let gaussian_mat = gaussian_filter(image, width, height, sigma);
+        compute_gradient(&gaussian_mat, width, height)
     };
-    let (gx, gy, mod_g) = compute_gradient(cal_image, width, height);
     let (ex, ey) = compute_edge_points(&mod_g, &gx, &gy, width, height);
     let (mut prev, mut next) = chain_edge_points(&ex, &ey, &gx, &gy, width, height);
     thresholds_with_hysteresis(&mut next, &mut prev, &mod_g, width, height, th_h, th_l);
     let results = list_chained_edge_points(&mut next, &mut prev, &ex, &ey, width, height);
-    trace!("Devernay result: {:?}", results.len());
+    info!("Devernay result: {:?}", results.len());
     Ok(results)
 }
 
+/// Represents a 2D point with floating-point coordinates.
+///
 #[derive(Debug, Clone, PartialOrd, PartialEq)]
 pub struct Point2d {
     pub x: f64,
