@@ -2,7 +2,7 @@
 #![allow(clippy::needless_range_loop)]
 
 use anyhow::{anyhow, Result};
-use log::info;
+use log::trace;
 use std::f64::consts::E;
 
 const EPSILON: f64 = f64::EPSILON;
@@ -712,9 +712,9 @@ fn list_chained_edge_points(
 /// let mut result_image: RgbImage = gray_mat.convert();
 ///
 /// let result = devernay(&data, *width as usize, *height as usize, 1.0, 40.0, 20.0).unwrap();
-/// info!("Result: {:?}", result.len());
+/// trace!("Result: {:?}", result.len());
 /// for points in result {
-///     info!("Points: {:?}", points.len());
+///     trace!("Points: {:?}", points.len());
 ///     for point in points {
 ///         result_image.put_pixel(point.x as u32, point.y as u32, image::Rgb([255, 0, 0]));
 ///     }
@@ -750,7 +750,7 @@ pub fn devernay(
     let (mut prev, mut next) = chain_edge_points(&ex, &ey, &gx, &gy, width, height);
     thresholds_with_hysteresis(&mut next, &mut prev, &mod_g, width, height, th_h, th_l);
     let results = list_chained_edge_points(&mut next, &mut prev, &ex, &ey, width, height);
-    info!("Devernay result: {:?}", results.len());
+    trace!("Devernay result: {:?}", results.len());
     Ok(results)
 }
 
